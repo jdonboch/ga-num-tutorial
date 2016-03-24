@@ -1,7 +1,7 @@
 package main
 
 // TODO
-// * Change 14 and 15 to /?
+// * Determine why no convergence on solution
 // * Use profiler to help performance
 
 import (
@@ -46,6 +46,24 @@ func SumPopulationProbability(pop []*Chromosome, target float64, sumOfFitness *b
 	return probSlice, -1
 }
 
+func RouletteWheelSelection(pop []*Chromosome, target float64, sumOfFitness *big.Float) [2]*Chromosome {
+	var mates [2]*Chromosome
+
+	probSlice, solution := SumPopulationProbability(pop, targetSolution, sumOfFitness)
+	if solution >= 0 {
+		OutputSolution(pop[solution])
+		os.Exit(0)
+	}
+	for j := 0; j < 2; j++ {
+		chosenProb := mathrand.Float64()
+
+		index := sort.SearchFloat64s(probSlice, chosenProb)
+		mates[j] = pop[index]
+	}
+
+	return mates
+}
+
 func BestSolution(pop []*Chromosome, target float64) *Chromosome {
 	var bestScore float64
 	var bestChromo *Chromosome
@@ -60,11 +78,11 @@ func BestSolution(pop []*Chromosome, target float64) *Chromosome {
 }
 
 const (
-	targetSolution     float64 = 145.0
-	numGenes           int     = 8
-	initalPopulateSize int     = 3333
-	finalPopulation    int     = 10000
-	crossoverRate      float64 = 0.7
+	targetSolution     float64 = 146.0
+	numGenes           int     = 12
+	initalPopulateSize int     = 200
+	finalPopulation    int     = 5000
+	crossoverRate      float64 = 0.8
 	mutationRate       float64 = 0.001
 )
 
@@ -78,6 +96,10 @@ func main() {
 	}
 
 	fmt.Println("Finished random chromosome gen")
+	fmt.Println("Best solution in initial population")
+	OutputSolution(BestSolution(population, targetSolution))
+	fmt.Println("------------")
+
 	mathrand.Seed(time.Now().UTC().UnixNano())
 
 	start := time.Now()
@@ -89,26 +111,7 @@ func main() {
 	}
 
 	for len(population) < finalPopulation {
-		var mates [2]*Chromosome
-
-		probSlice, solution := SumPopulationProbability(population, targetSolution, sumOfFitness)
-		if solution >= 0 {
-			OutputSolution(population[solution])
-			os.Exit(0)
-		}
-		for j := 0; j < 2; j++ {
-			chosenProb := mathrand.Float64()
-
-			index := sort.SearchFloat64s(probSlice, chosenProb)
-			mates[j] = population[index]
-			// for k, prob := range probSlice {
-			// 	if chosenProb <= prob {
-			// 		mates[j] = population[k]
-			// 		break
-			// 	}
-			// }
-		}
-
+		mates := RouletteWheelSelection(population, targetSolution, sumOfFitness)
 		newChromo := mates[0].Mate(mates[1], crossoverRate).Mutate(mutationRate)
 		sumOfFitness.Add(sumOfFitness, big.NewFloat(newChromo.GetFitnessScore(targetSolution)))
 		population = append(population, newChromo)
